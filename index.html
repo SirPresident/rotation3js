@@ -1,16 +1,23 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
 
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+        content="width=device-width,
+                 initial-scale=1.0,
+                 maximum-scale=1.0,
+                 user-scalable=no"
     >
 
-    <title>Three.js Phone Orientation</title>
+    <title>3D Star Field</title>
 
     <style>
+
         * {
             box-sizing: border-box;
         }
@@ -18,104 +25,171 @@
         body {
             margin: 0;
             overflow: hidden;
-            background: #101318;
+
+            background: #03050a;
+
             color: white;
+
             font-family: Arial, sans-serif;
         }
 
+
+        /* -------------------------------------------------------
+           UI
+        ------------------------------------------------------- */
+
         #ui {
+
             position: fixed;
+
             top: 0;
             left: 0;
             right: 0;
+
             z-index: 10;
 
             padding: 16px;
 
-            background: rgba(16, 19, 24, 0.85);
-            backdrop-filter: blur(10px);
-
             text-align: center;
+
+            background: rgba(3, 5, 10, 0.72);
+
+            backdrop-filter: blur(12px);
         }
+
 
         #title {
+
             font-size: 20px;
+
             font-weight: bold;
-            margin-bottom: 10px;
+
+            margin-bottom: 6px;
         }
+
 
         #status {
-            font-size: 14px;
-            color: #aaa;
-            margin-bottom: 10px;
+
+            font-size: 13px;
+
+            color: #aeb6c4;
+
+            margin-bottom: 12px;
         }
 
+
         button {
+
             border: none;
+
             border-radius: 10px;
 
-            padding: 13px 20px;
+            padding: 12px 18px;
 
-            font-size: 15px;
+            font-size: 14px;
+
             font-weight: bold;
 
             background: white;
+
             color: #111;
 
             cursor: pointer;
         }
 
+
+        button + button {
+
+            margin-left: 6px;
+        }
+
+
         button:disabled {
-            opacity: 0.5;
+
+            opacity: 0.45;
+
             cursor: default;
         }
 
+
         #values {
-            margin-top: 12px;
 
             display: flex;
+
             justify-content: center;
-            gap: 8px;
+
+            gap: 7px;
+
+            margin-top: 12px;
+
+            flex-wrap: wrap;
         }
 
-        .value {
-            min-width: 72px;
 
-            padding: 7px;
+        .value {
+
+            min-width: 68px;
+
+            padding: 6px 8px;
 
             border-radius: 8px;
 
-            background: rgba(255,255,255,0.08);
+            background:
+                rgba(255, 255, 255, 0.07);
 
-            font-size: 11px;
-            color: #aaa;
+            color: #929baa;
+
+            font-size: 10px;
         }
+
 
         .value strong {
-            display: block;
-            margin-top: 3px;
 
-            font-size: 14px;
+            display: block;
+
+            margin-top: 2px;
+
             color: white;
+
+            font-size: 13px;
         }
+
     </style>
+
 </head>
 
+
 <body>
+
+
+<!-- ============================================================
+     UI
+============================================================ -->
 
 <div id="ui">
 
     <div id="title">
-        Three.js Phone Orientation
+        3D Star Field
     </div>
+
 
     <div id="status">
-        Sensor not enabled
+        Motion sensor not enabled
     </div>
 
-    <button id="enableButton">
-        Enable Motion Sensor
-    </button>
+
+    <div>
+
+        <button id="enableButton">
+            Enable Motion Sensor
+        </button>
+
+        <button id="calibrateButton">
+            Recalibrate
+        </button>
+
+    </div>
+
 
     <div id="values">
 
@@ -135,8 +209,8 @@
         </div>
 
         <div class="value">
-            SCREEN
-            <strong id="screenAngle">0°</strong>
+            SENSITIVITY
+            <strong id="sensitivity">30%</strong>
         </div>
 
     </div>
@@ -146,72 +220,127 @@
 
 <script type="module">
 
+
+    // ============================================================
+    // THREE.JS
+    // ============================================================
+
     import * as THREE from
         "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js";
 
 
     // ============================================================
-    // ROTATION SETTINGS
+    // SETTINGS
     // ============================================================
 
+
     /*
-     * How much of the phone's physical rotation should be
-     * transferred to the 3D model.
+     * How much phone rotation is transferred to
+     * the star field.
      *
      * 1.00 = full rotation
-     * 0.75 = 75% of the rotation
-     * 0.50 = half the rotation
-     * 0.35 = 35% of the rotation
-     * 0.20 = very subtle movement
+     * 0.50 = half rotation
+     * 0.30 = subtle
+     * 0.15 = very subtle
      */
 
-    const ROTATION_SENSITIVITY = 0.2;
+    const ROTATION_SENSITIVITY = 0.30;
 
 
     /*
-     * How quickly the model follows the target orientation.
-     *
-     * Higher = more responsive
-     * Lower = smoother / slower
+     * How quickly the star field follows the phone.
      */
 
-    const SMOOTHING = 0.18;
+    const SMOOTHING = 0.16;
+
+
+    /*
+     * Number of stars.
+     *
+     * Modern phones should handle 1500 comfortably.
+     */
+
+    const STAR_COUNT = 1500;
+
+
+    /*
+     * Radius of the 3D star volume.
+     */
+
+    const STAR_RADIUS = 7.5;
 
 
     // ============================================================
-    // THREE.JS SETUP
+    // SCENE
     // ============================================================
 
-    const scene = new THREE.Scene();
+    const scene =
+        new THREE.Scene();
+
 
     scene.background =
-        new THREE.Color(0x101318);
+        new THREE.Color(
+            0x03050a
+        );
 
+
+    // ============================================================
+    // CAMERA
+    // ============================================================
 
     const camera =
         new THREE.PerspectiveCamera(
-            45,
-            window.innerWidth / window.innerHeight,
+            55,
+
+            window.innerWidth /
+            window.innerHeight,
+
             0.1,
+
             100
         );
 
-    camera.position.set(0, 0, 4);
 
+    /*
+     * The camera is outside the star volume.
+     *
+     * This is important because perspective makes
+     * nearby and distant stars behave differently.
+     */
+
+    camera.position.set(
+        0,
+        0,
+        12
+    );
+
+
+    // ============================================================
+    // RENDERER
+    // ============================================================
 
     const renderer =
         new THREE.WebGLRenderer({
-            antialias: true
+
+            antialias: true,
+
+            powerPreference: "high-performance"
         });
 
+
     renderer.setPixelRatio(
-        Math.min(window.devicePixelRatio, 2)
+        Math.min(
+            window.devicePixelRatio,
+            2
+        )
     );
+
 
     renderer.setSize(
         window.innerWidth,
         window.innerHeight
     );
+
 
     document.body.appendChild(
         renderer.domElement
@@ -219,113 +348,467 @@
 
 
     // ============================================================
-    // LIGHTING
+    // STAR FIELD GROUP
     // ============================================================
 
-    const ambientLight =
-        new THREE.AmbientLight(
-            0xffffff,
-            2
-        );
+    /*
+     * Every star belongs to this group.
+     *
+     * When the group rotates using a quaternion,
+     * the entire 3D structure rotates.
+     */
 
-    scene.add(ambientLight);
-
-
-    const light =
-        new THREE.DirectionalLight(
-            0xffffff,
-            3
-        );
-
-    light.position.set(
-        2,
-        4,
-        5
-    );
-
-    scene.add(light);
-
-
-    // ============================================================
-    // SIMPLE 3D PHONE
-    // Replace this later with Leo.glb
-    // ============================================================
-
-    const phone =
+    const starField =
         new THREE.Group();
 
-    scene.add(phone);
+
+    scene.add(
+        starField
+    );
 
 
-    const bodyGeometry =
-        new THREE.BoxGeometry(
-            1.6,
-            3.2,
-            0.18
+    // ============================================================
+    // STAR DATA
+    // ============================================================
+
+    const positions =
+        new Float32Array(
+            STAR_COUNT * 3
         );
 
-    const bodyMaterial =
-        new THREE.MeshStandardMaterial({
-            color: 0x222831,
-            metalness: 0.7,
-            roughness: 0.25
-        });
 
-    const body =
-        new THREE.Mesh(
-            bodyGeometry,
-            bodyMaterial
+    const sizes =
+        new Float32Array(
+            STAR_COUNT
         );
 
-    phone.add(body);
 
-
-    const screenGeometry =
-        new THREE.BoxGeometry(
-            1.42,
-            2.82,
-            0.035
+    const brightness =
+        new Float32Array(
+            STAR_COUNT
         );
 
-    const screenMaterial =
-        new THREE.MeshStandardMaterial({
-            color: 0x17202a,
-            metalness: 0.1,
-            roughness: 0.15
-        });
 
-    const screen =
-        new THREE.Mesh(
-            screenGeometry,
-            screenMaterial
+    const twinkle =
+        new Float32Array(
+            STAR_COUNT
         );
 
-    screen.position.z = 0.11;
 
-    phone.add(screen);
+    const phases =
+        new Float32Array(
+            STAR_COUNT
+        );
 
 
-    const leoGeometry =
-        new THREE.PlaneGeometry(
-            1,
+    // ============================================================
+    // CREATE 3D STAR DISTRIBUTION
+    // ============================================================
+
+    for (
+        let i = 0;
+        i < STAR_COUNT;
+        i++
+    ) {
+
+
+        /*
+         * Uniform-ish distribution inside a sphere.
+         *
+         * This gives us actual 3D depth rather than
+         * just putting stars on a flat screen.
+         */
+
+        const theta =
+            Math.random() *
+            Math.PI * 2;
+
+
+        const phi =
+            Math.acos(
+                2 * Math.random() - 1
+            );
+
+
+        /*
+         * Cubic-root distribution keeps the
+         * volume looking natural.
+         */
+
+        const radius =
+            STAR_RADIUS *
+            Math.cbrt(
+                Math.random()
+            );
+
+
+        const sinPhi =
+            Math.sin(phi);
+
+
+        const x =
+            radius *
+            sinPhi *
+            Math.cos(theta);
+
+
+        const y =
+            radius *
+            sinPhi *
+            Math.sin(theta);
+
+
+        const z =
+            radius *
+            Math.cos(phi);
+
+
+        positions[i * 3] =
+            x;
+
+        positions[i * 3 + 1] =
+            y;
+
+        positions[i * 3 + 2] =
+            z;
+
+
+        /*
+         * Different intrinsic star sizes.
+         *
+         * The shader additionally makes them
+         * appear larger when they are physically
+         * closer to the camera.
+         */
+
+        sizes[i] =
+            0.7 +
+            Math.random() * 2.0;
+
+
+        /*
+         * Different brightness.
+         */
+
+        brightness[i] =
+            0.45 +
+            Math.random() * 0.75;
+
+
+        /*
+         * How quickly this individual star twinkles.
+         */
+
+        twinkle[i] =
+            0.25 +
+            Math.random() * 1.25;
+
+
+        /*
+         * Random phase prevents all stars
+         * from twinkling together.
+         */
+
+        phases[i] =
+            Math.random() *
+            Math.PI * 2;
+    }
+
+
+    // ============================================================
+    // BUFFER GEOMETRY
+    // ============================================================
+
+    const geometry =
+        new THREE.BufferGeometry();
+
+
+    geometry.setAttribute(
+        "position",
+
+        new THREE.BufferAttribute(
+            positions,
+            3
+        )
+    );
+
+
+    geometry.setAttribute(
+        "aSize",
+
+        new THREE.BufferAttribute(
+            sizes,
             1
-        );
+        )
+    );
 
-    const leoMaterial =
-        new THREE.MeshBasicMaterial({
-            color: 0x5f8dd3,
-            side: THREE.DoubleSide
+
+    geometry.setAttribute(
+        "aBrightness",
+
+        new THREE.BufferAttribute(
+            brightness,
+            1
+        )
+    );
+
+
+    geometry.setAttribute(
+        "aTwinkle",
+
+        new THREE.BufferAttribute(
+            twinkle,
+            1
+        )
+    );
+
+
+    geometry.setAttribute(
+        "aPhase",
+
+        new THREE.BufferAttribute(
+            phases,
+            1
+        )
+    );
+
+
+    // ============================================================
+    // STAR SHADER
+    // ============================================================
+
+    /*
+     * A custom shader gives us:
+     *
+     * - soft glowing stars
+     * - different sizes
+     * - depth-based size
+     * - individual twinkle
+     * - additive light-like appearance
+     */
+
+
+    const starMaterial =
+        new THREE.ShaderMaterial({
+
+            transparent: true,
+
+            depthWrite: false,
+
+            depthTest: true,
+
+            blending:
+                THREE.AdditiveBlending,
+
+
+            uniforms: {
+
+                uTime: {
+                    value: 0
+                }
+
+            },
+
+
+            vertexShader: `
+
+                uniform float uTime;
+
+                attribute float aSize;
+                attribute float aBrightness;
+                attribute float aTwinkle;
+                attribute float aPhase;
+
+                varying float vBrightness;
+
+
+                void main() {
+
+                    vec4 mvPosition =
+                        modelViewMatrix *
+                        vec4(position, 1.0);
+
+
+                    /*
+                     * Distance from the camera.
+                     */
+
+                    float depth =
+                        max(
+                            1.0,
+                            -mvPosition.z
+                        );
+
+
+                    /*
+                     * Subtle individual twinkle.
+                     */
+
+                    float sparkle =
+                        0.88 +
+                        0.12 *
+                        sin(
+                            uTime *
+                            aTwinkle +
+                            aPhase
+                        );
+
+
+                    /*
+                     * Perspective:
+                     *
+                     * closer stars appear larger
+                     * farther stars appear smaller.
+                     */
+
+                    float perspectiveSize =
+                        42.0 /
+                        depth;
+
+
+                    gl_PointSize =
+                        aSize *
+                        perspectiveSize *
+                        sparkle;
+
+
+                    /*
+                     * Prevent one extremely close
+                     * star from becoming enormous.
+                     */
+
+                    gl_PointSize =
+                        min(
+                            gl_PointSize,
+                            18.0
+                        );
+
+
+                    vBrightness =
+                        aBrightness *
+                        sparkle;
+
+
+                    gl_Position =
+                        projectionMatrix *
+                        mvPosition;
+                }
+
+            `,
+
+
+            fragmentShader: `
+
+
+                varying float vBrightness;
+
+
+                void main() {
+
+
+                    /*
+                     * Distance from the center of
+                     * this point sprite.
+                     */
+
+                    vec2 uv =
+                        gl_PointCoord -
+                        vec2(0.5);
+
+
+                    float distanceFromCenter =
+                        length(uv);
+
+
+                    /*
+                     * Soft circular glow.
+                     */
+
+                    float glow =
+                        1.0 -
+                        smoothstep(
+                            0.0,
+                            0.5,
+                            distanceFromCenter
+                        );
+
+
+                    /*
+                     * Strong bright core.
+                     */
+
+                    float core =
+                        1.0 -
+                        smoothstep(
+                            0.0,
+                            0.16,
+                            distanceFromCenter
+                        );
+
+
+                    /*
+                     * Combine glow + core.
+                     */
+
+                    float alpha =
+                        glow *
+                        0.55 +
+                        core *
+                        0.45;
+
+
+                    /*
+                     * Slightly cool-white stars.
+                     */
+
+                    vec3 color =
+                        mix(
+                            vec3(
+                                0.82,
+                                0.90,
+                                1.0
+                            ),
+
+                            vec3(
+                                1.0,
+                                1.0,
+                                0.94
+                            ),
+
+                            core
+                        );
+
+
+                    color *=
+                        vBrightness;
+
+
+                    gl_FragColor =
+                        vec4(
+                            color,
+                            alpha *
+                            vBrightness
+                        );
+                }
+
+            `
         });
 
-    const leo =
-        new THREE.Mesh(
-            leoGeometry,
-            leoMaterial
+
+    // ============================================================
+    // CREATE POINT CLOUD
+    // ============================================================
+
+    const stars =
+        new THREE.Points(
+            geometry,
+            starMaterial
         );
 
-    leo.position.z = 0.14;
 
-    phone.add(leo);
+    starField.add(
+        stars
+    );
 
 
     // ============================================================
@@ -335,38 +818,53 @@
     const deviceQuaternion =
         new THREE.Quaternion();
 
+
     const calibrationQuaternion =
         new THREE.Quaternion();
+
 
     const inverseCalibration =
         new THREE.Quaternion();
 
+
     const relativeQuaternion =
         new THREE.Quaternion();
+
 
     const reducedQuaternion =
         new THREE.Quaternion();
 
+
     const targetQuaternion =
         new THREE.Quaternion();
+
 
     const euler =
         new THREE.Euler();
 
+
     const screenQuaternion =
         new THREE.Quaternion();
+
 
     const identityQuaternion =
         new THREE.Quaternion();
 
 
-    // Device coordinate system → Three.js coordinate system
+    /*
+     * Device coordinate system → Three.js
+     * coordinate system.
+     */
 
     const DEVICE_TO_THREE =
         new THREE.Quaternion(
+
             -Math.sqrt(0.5),
+
             0,
+
             0,
+
             Math.sqrt(0.5)
         );
 
@@ -379,7 +877,12 @@
         );
 
 
-    let calibrated = false;
+    let calibrated =
+        false;
+
+
+    let sensorEnabled =
+        false;
 
 
     // ============================================================
@@ -391,79 +894,112 @@
             "enableButton"
         );
 
+
+    const calibrateButton =
+        document.getElementById(
+            "calibrateButton"
+        );
+
+
     const status =
         document.getElementById(
             "status"
         );
+
 
     const alphaDisplay =
         document.getElementById(
             "alpha"
         );
 
+
     const betaDisplay =
         document.getElementById(
             "beta"
         );
+
 
     const gammaDisplay =
         document.getElementById(
             "gamma"
         );
 
-    const screenDisplay =
-        document.getElementById(
-            "screenAngle"
-        );
-
 
     // ============================================================
-    // SCREEN ORIENTATION
+    // SCREEN ROTATION
     // ============================================================
 
     function getScreenAngle() {
 
-        if (
-            screen.orientation &&
-            typeof screen.orientation.angle === "number"
-        ) {
-            return screen.orientation.angle;
-        }
 
         if (
-            typeof window.orientation === "number"
+
+            screen.orientation &&
+
+            typeof screen.orientation.angle ===
+                "number"
+
         ) {
-            return window.orientation;
+
+            return screen.orientation.angle;
+
         }
+
+
+        if (
+
+            typeof window.orientation ===
+                "number"
+
+        ) {
+
+            return window.orientation;
+
+        }
+
 
         return 0;
     }
 
 
     // ============================================================
-    // DEVICE ORIENTATION
+    // BUILD DEVICE QUATERNION
     // ============================================================
 
-    function updateDeviceQuaternion(event) {
+    function updateDeviceQuaternion(
+        event
+    ) {
+
 
         if (
+
             event.alpha === null ||
+
             event.beta === null ||
+
             event.gamma === null
+
         ) {
+
             return;
         }
 
+
+        /*
+         * Convert degrees → radians.
+         */
 
         const alpha =
             THREE.MathUtils.degToRad(
                 event.alpha
             );
 
+
         const beta =
             THREE.MathUtils.degToRad(
                 event.beta
             );
+
 
         const gamma =
             THREE.MathUtils.degToRad(
@@ -471,35 +1007,46 @@
             );
 
 
-        // --------------------------------------------------------
-        // Convert sensor angles → quaternion
-        // --------------------------------------------------------
+        /*
+         * Convert the sensor angles into
+         * ONE quaternion.
+         *
+         * We deliberately do not independently
+         * rotate X, Y and Z.
+         */
 
         euler.set(
+
             beta,
+
             alpha,
+
             -gamma,
+
             "YXZ"
         );
 
 
-        deviceQuaternion.setFromEuler(
-            euler
-        );
+        deviceQuaternion
+            .setFromEuler(
+                euler
+            );
 
 
-        // --------------------------------------------------------
-        // Device coordinates → Three.js coordinates
-        // --------------------------------------------------------
+        /*
+         * Convert Android/device coordinates
+         * into Three.js coordinates.
+         */
 
         deviceQuaternion.multiply(
             DEVICE_TO_THREE
         );
 
 
-        // --------------------------------------------------------
-        // Screen orientation compensation
-        // --------------------------------------------------------
+        /*
+         * Compensate for portrait/landscape
+         * screen rotation.
+         */
 
         const screenAngle =
             THREE.MathUtils.degToRad(
@@ -507,10 +1054,13 @@
             );
 
 
-        screenQuaternion.setFromAxisAngle(
-            SCREEN_AXIS,
-            -screenAngle
-        );
+        screenQuaternion
+            .setFromAxisAngle(
+
+                SCREEN_AXIS,
+
+                -screenAngle
+            );
 
 
         deviceQuaternion.multiply(
@@ -518,50 +1068,58 @@
         );
 
 
-        // --------------------------------------------------------
+        // ========================================================
         // CALIBRATION
-        // --------------------------------------------------------
+        // ========================================================
 
         if (!calibrated) {
 
-            calibrationQuaternion.copy(
-                deviceQuaternion
-            );
+            calibrationQuaternion
+                .copy(
+                    deviceQuaternion
+                );
+
 
             inverseCalibration
-                .copy(calibrationQuaternion)
+                .copy(
+                    calibrationQuaternion
+                )
                 .invert();
+
 
             calibrated = true;
         }
 
 
-        // --------------------------------------------------------
-        // Orientation relative to starting position
-        // --------------------------------------------------------
+        /*
+         * Rotation relative to the calibrated
+         * starting position.
+         */
 
         relativeQuaternion
-            .copy(inverseCalibration)
-            .multiply(deviceQuaternion);
+            .copy(
+                inverseCalibration
+            )
+            .multiply(
+                deviceQuaternion
+            );
 
 
-        // --------------------------------------------------------
+        // ========================================================
         // REDUCE ROTATION SENSITIVITY
-        //
-        // Instead of applying the full rotation,
-        // move only part-way from identity to the
-        // measured orientation.
-        //
-        // Example:
-        //
-        // phone rotates 90°
-        // sensitivity = 0.35
-        //
-        // model rotates approximately 31.5°
-        // --------------------------------------------------------
+        // ========================================================
+
+        /*
+         * Instead of using the full measured
+         * quaternion, interpolate from identity.
+         *
+         * 0.30 = 30% of physical rotation.
+         */
 
         reducedQuaternion
-            .copy(identityQuaternion)
+            .copy(
+                identityQuaternion
+            )
             .slerp(
                 relativeQuaternion,
                 ROTATION_SENSITIVITY
@@ -573,31 +1131,38 @@
         );
 
 
-        // --------------------------------------------------------
-        // SMOOTH MOVEMENT
-        // --------------------------------------------------------
+        // ========================================================
+        // SMOOTH ROTATION
+        // ========================================================
 
-        phone.quaternion.slerp(
+        starField.quaternion.slerp(
+
             targetQuaternion,
+
             SMOOTHING
         );
 
 
-        // --------------------------------------------------------
-        // SENSOR VALUES
-        // --------------------------------------------------------
+        // ========================================================
+        // SENSOR DISPLAY
+        // ========================================================
 
         alphaDisplay.textContent =
-            Math.round(event.alpha) + "°";
+            Math.round(
+                event.alpha
+            ) + "°";
+
 
         betaDisplay.textContent =
-            Math.round(event.beta) + "°";
+            Math.round(
+                event.beta
+            ) + "°";
+
 
         gammaDisplay.textContent =
-            Math.round(event.gamma) + "°";
-
-        screenDisplay.textContent =
-            getScreenAngle() + "°";
+            Math.round(
+                event.gamma
+            ) + "°";
     }
 
 
@@ -607,11 +1172,15 @@
 
     async function enableOrientation() {
 
+
         try {
 
+
             if (
+
                 typeof DeviceOrientationEvent ===
-                "undefined"
+                    "undefined"
+
             ) {
 
                 throw new Error(
@@ -621,22 +1190,28 @@
 
 
             /*
-             * Some browsers require explicit permission.
+             * Some browsers expose an explicit
+             * permission API.
              */
 
             if (
+
                 typeof DeviceOrientationEvent
                     .requestPermission ===
-                "function"
+                    "function"
+
             ) {
 
+
                 const permission =
+
                     await DeviceOrientationEvent
                         .requestPermission();
 
 
                 if (
-                    permission !== "granted"
+                    permission !==
+                    "granted"
                 ) {
 
                     throw new Error(
@@ -646,44 +1221,93 @@
             }
 
 
-            // ----------------------------------------------------
-            // Reset calibration when enabled
-            // ----------------------------------------------------
-
-            calibrated = false;
-
+            /*
+             * Start listening to orientation.
+             */
 
             window.addEventListener(
+
                 "deviceorientation",
+
                 updateDeviceQuaternion,
+
                 true
             );
 
 
-            enableButton.disabled = true;
+            sensorEnabled =
+                true;
+
+
+            calibrated =
+                false;
+
+
+            enableButton.disabled =
+                true;
+
 
             enableButton.textContent =
-                "Motion Sensor Enabled";
+                "Sensor Enabled";
 
 
             status.textContent =
-                "Move your phone — rotation is intentionally reduced.";
+                "Rotate your phone and explore the 3D depth.";
 
 
-        } catch (error) {
+        }
 
-            console.error(error);
+        catch (error) {
+
+
+            console.error(
+                error
+            );
+
 
             status.textContent =
                 error.message ||
+
                 "Could not access the motion sensor.";
         }
     }
 
 
     enableButton.addEventListener(
+
         "click",
+
         enableOrientation
+    );
+
+
+    // ============================================================
+    // MANUAL RECALIBRATION
+    // ============================================================
+
+    calibrateButton.addEventListener(
+
+        "click",
+
+        () => {
+
+
+            if (!sensorEnabled) {
+
+                status.textContent =
+                    "Enable the motion sensor first.";
+
+                return;
+            }
+
+
+            calibrated =
+                false;
+
+
+            status.textContent =
+                "Calibration reset — hold the phone in your desired neutral position.";
+        }
     );
 
 
@@ -692,16 +1316,23 @@
     // ============================================================
 
     window.addEventListener(
+
         "resize",
+
         () => {
 
+
             camera.aspect =
+
                 window.innerWidth /
                 window.innerHeight;
 
+
             camera.updateProjectionMatrix();
 
+
             renderer.setSize(
+
                 window.innerWidth,
                 window.innerHeight
             );
@@ -710,14 +1341,28 @@
 
 
     // ============================================================
-    // RENDER LOOP
+    // ANIMATION
     // ============================================================
 
+    const clock =
+        new THREE.Clock();
+
+
     function animate() {
+
 
         requestAnimationFrame(
             animate
         );
+
+
+        /*
+         * Continuous subtle twinkle.
+         */
+
+        starMaterial.uniforms.uTime.value =
+            clock.getElapsedTime();
+
 
         renderer.render(
             scene,
@@ -728,7 +1373,10 @@
 
     animate();
 
+
 </script>
 
 </body>
+
 </html>
+```
