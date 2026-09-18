@@ -1,253 +1,696 @@
+Save this as `index.html`:
+
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phone Orientation Test</title>
+
+    <!-- Important for phones -->
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    >
+
+    <title>Three.js Phone Orientation</title>
 
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
-            background: #111;
+            overflow: hidden;
+            background: #101318;
             color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        #ui {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 10;
+
+            padding: 16px;
+
+            background: rgba(16, 19, 24, 0.85);
+            backdrop-filter: blur(10px);
+
             text-align: center;
         }
 
-        h1 {
-            margin-top: 30px;
-        }
-
-        #phone {
-            width: 150px;
-            height: 290px;
-            margin: 80px auto 40px;
-
-            border: 7px solid #ddd;
-            border-radius: 28px;
-
-            background: linear-gradient(
-                145deg,
-                #dfe4e8,
-                #777
-            );
-
-            display: flex;
-            align-items: center;
-            justify-content: center;
-
-            transform-style: preserve-3d;
-
-            transition: transform 0.08s linear;
-
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-        }
-
-        #screen {
-            width: 125px;
-            height: 265px;
-
-            border-radius: 20px;
-
-            background: linear-gradient(
-                145deg,
-                #18202a,
-                #53677a
-            );
-
-            display: flex;
-            align-items: center;
-            justify-content: center;
-
-            font-size: 25px;
+        #title {
+            font-size: 20px;
             font-weight: bold;
-        }
-
-        #values {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin: 20px;
-        }
-
-        .value {
-            background: #222;
-            padding: 15px;
-            border-radius: 10px;
-            min-width: 70px;
-        }
-
-        button {
-            padding: 15px 25px;
-            font-size: 16px;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
+            margin-bottom: 10px;
         }
 
         #status {
-            margin-top: 20px;
+            font-size: 14px;
             color: #aaa;
+            margin-bottom: 10px;
+        }
+
+        button {
+            border: none;
+            border-radius: 10px;
+
+            padding: 13px 20px;
+
+            font-size: 15px;
+            font-weight: bold;
+
+            background: white;
+            color: #111;
+
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+
+        #values {
+            margin-top: 12px;
+
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .value {
+            min-width: 72px;
+
+            padding: 7px;
+
+            border-radius: 8px;
+
+            background: rgba(255,255,255,0.08);
+
+            font-size: 11px;
+            color: #aaa;
+        }
+
+        .value strong {
+            display: block;
+            margin-top: 3px;
+
+            font-size: 14px;
+            color: white;
         }
     </style>
 </head>
 
 <body>
 
-    <h1>Phone Orientation Test</h1>
+<div id="ui">
 
-    <div id="phone">
-        <div id="screen">
-            Leo
-        </div>
+    <div id="title">
+        Three.js Phone Orientation
     </div>
+
+    <div id="status">
+        Sensor not enabled
+    </div>
+
+    <button id="enableButton">
+        Enable Motion Sensor
+    </button>
 
     <div id="values">
 
         <div class="value">
-            Alpha<br>
+            ALPHA
             <strong id="alpha">0°</strong>
         </div>
 
         <div class="value">
-            Beta<br>
+            BETA
             <strong id="beta">0°</strong>
         </div>
 
         <div class="value">
-            Gamma<br>
+            GAMMA
             <strong id="gamma">0°</strong>
+        </div>
+
+        <div class="value">
+            SCREEN
+            <strong id="screenAngle">0°</strong>
         </div>
 
     </div>
 
-    <button id="start">
-        Enable Phone Orientation
-    </button>
-
-    <div id="status">
-        Open this page on your phone and press the button.
-    </div>
+</div>
 
 
-    <script>
+<script type="module">
 
-        const phone = document.getElementById("phone");
-
-        const alphaDisplay =
-            document.getElementById("alpha");
-
-        const betaDisplay =
-            document.getElementById("beta");
-
-        const gammaDisplay =
-            document.getElementById("gamma");
-
-        const startButton =
-            document.getElementById("start");
-
-        const status =
-            document.getElementById("status");
+    import * as THREE from
+        "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js";
 
 
-        function handleOrientation(event) {
+    // ============================================================
+    // THREE.JS SETUP
+    // ============================================================
 
-            const alpha = event.alpha || 0;
-            const beta = event.beta || 0;
-            const gamma = event.gamma || 0;
+    const scene = new THREE.Scene();
 
-
-            alphaDisplay.textContent =
-                Math.round(alpha) + "°";
-
-            betaDisplay.textContent =
-                Math.round(beta) + "°";
-
-            gammaDisplay.textContent =
-                Math.round(gamma) + "°";
+    scene.background = new THREE.Color(0x101318);
 
 
-            /*
-                Rotate the 3D phone.
+    const camera = new THREE.PerspectiveCamera(
+        45,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        100
+    );
 
-                beta  = front/back tilt
-                gamma = left/right tilt
-                alpha = compass rotation
-            */
-
-            phone.style.transform =
-                `perspective(700px)
-                 rotateX(${-beta}deg)
-                 rotateY(${gamma}deg)
-                 rotateZ(${-alpha * 0.15}deg)`;
-        }
+    camera.position.set(0, 0, 4);
 
 
-        async function enableOrientation() {
+    const renderer = new THREE.WebGLRenderer({
+        antialias: true
+    });
 
-            try {
+    renderer.setPixelRatio(
+        Math.min(window.devicePixelRatio, 2)
+    );
 
-                /*
-                    iPhone/iPad require explicit permission.
+    renderer.setSize(
+        window.innerWidth,
+        window.innerHeight
+    );
 
-                    Samsung/Android browsers normally
-                    don't require this step.
-                */
-
-                if (
-                    typeof DeviceOrientationEvent !==
-                    "undefined" &&
-                    typeof DeviceOrientationEvent.requestPermission ===
-                    "function"
-                ) {
-
-                    const permission =
-                        await DeviceOrientationEvent
-                            .requestPermission();
-
-                    if (permission !== "granted") {
-
-                        throw new Error(
-                            "Motion permission was not granted."
-                        );
-                    }
-                }
+    document.body.appendChild(renderer.domElement);
 
 
-                window.addEventListener(
-                    "deviceorientation",
-                    handleOrientation,
-                    true
-                );
+    // ============================================================
+    // LIGHTING
+    // ============================================================
+
+    const ambientLight =
+        new THREE.AmbientLight(0xffffff, 2);
+
+    scene.add(ambientLight);
 
 
-                status.textContent =
-                    "Sensor connected. Move your phone!";
+    const light =
+        new THREE.DirectionalLight(0xffffff, 3);
 
-                startButton.disabled = true;
+    light.position.set(2, 4, 5);
 
-                startButton.textContent =
-                    "Orientation Enabled";
-
-            }
-
-            catch (error) {
-
-                console.error(error);
-
-                status.textContent =
-                    error.message ||
-                    "Could not access the orientation sensor.";
-            }
-        }
+    scene.add(light);
 
 
-        startButton.addEventListener(
-            "click",
-            enableOrientation
+    // ============================================================
+    // CREATE A SIMPLE 3D PHONE
+    //
+    // Later you can replace this with Leo.glb
+    // ============================================================
+
+    const phone = new THREE.Group();
+
+    scene.add(phone);
+
+
+    // Main phone body
+
+    const bodyGeometry =
+        new THREE.BoxGeometry(
+            1.6,
+            3.2,
+            0.18
         );
 
-    </script>
+    const bodyMaterial =
+        new THREE.MeshStandardMaterial({
+            color: 0x222831,
+            metalness: 0.7,
+            roughness: 0.25
+        });
+
+    const body =
+        new THREE.Mesh(
+            bodyGeometry,
+            bodyMaterial
+        );
+
+    phone.add(body);
+
+
+    // Screen
+
+    const screenGeometry =
+        new THREE.BoxGeometry(
+            1.42,
+            2.82,
+            0.035
+        );
+
+    const screenMaterial =
+        new THREE.MeshStandardMaterial({
+            color: 0x17202a,
+            metalness: 0.1,
+            roughness: 0.15
+        });
+
+    const screen =
+        new THREE.Mesh(
+            screenGeometry,
+            screenMaterial
+        );
+
+    screen.position.z = 0.11;
+
+    phone.add(screen);
+
+
+    // Leo text placeholder
+
+    const leoGeometry =
+        new THREE.PlaneGeometry(
+            1.0,
+            1.0
+        );
+
+    const leoMaterial =
+        new THREE.MeshBasicMaterial({
+            color: 0x5f8dd3,
+            side: THREE.DoubleSide
+        });
+
+    const leo =
+        new THREE.Mesh(
+            leoGeometry,
+            leoMaterial
+        );
+
+    leo.position.z = 0.14;
+
+    phone.add(leo);
+
+
+    // ============================================================
+    // SENSOR / QUATERNION VARIABLES
+    // ============================================================
+
+    const deviceQuaternion =
+        new THREE.Quaternion();
+
+    const calibrationQuaternion =
+        new THREE.Quaternion();
+
+    const inverseCalibration =
+        new THREE.Quaternion();
+
+    const finalQuaternion =
+        new THREE.Quaternion();
+
+    const euler =
+        new THREE.Euler();
+
+    const screenQuaternion =
+        new THREE.Quaternion();
+
+
+    // Fixed quaternion used to convert the device coordinate
+    // system into the Three.js coordinate system.
+
+    const DEVICE_TO_THREE =
+        new THREE.Quaternion(
+            -Math.sqrt(0.5),
+            0,
+            0,
+            Math.sqrt(0.5)
+        );
+
+
+    const SCREEN_AXIS =
+        new THREE.Vector3(0, 0, 1);
+
+
+    let calibrated = false;
+    let sensorStarted = false;
+
+
+    // ============================================================
+    // UI
+    // ============================================================
+
+    const enableButton =
+        document.getElementById("enableButton");
+
+    const status =
+        document.getElementById("status");
+
+    const alphaDisplay =
+        document.getElementById("alpha");
+
+    const betaDisplay =
+        document.getElementById("beta");
+
+    const gammaDisplay =
+        document.getElementById("gamma");
+
+    const screenDisplay =
+        document.getElementById("screenAngle");
+
+
+    // ============================================================
+    // GET CURRENT SCREEN ROTATION
+    // ============================================================
+
+    function getScreenAngle() {
+
+        if (
+            screen.orientation &&
+            typeof screen.orientation.angle === "number"
+        ) {
+            return screen.orientation.angle;
+        }
+
+        // Fallback for older browsers
+
+        if (
+            typeof window.orientation === "number"
+        ) {
+            return window.orientation;
+        }
+
+        return 0;
+    }
+
+
+    // ============================================================
+    // DEVICE ORIENTATION → QUATERNION
+    // ============================================================
+
+    function updateDeviceQuaternion(event) {
+
+        if (
+            event.alpha === null ||
+            event.beta === null ||
+            event.gamma === null
+        ) {
+            return;
+        }
+
+
+        const alpha =
+            THREE.MathUtils.degToRad(
+                event.alpha
+            );
+
+        const beta =
+            THREE.MathUtils.degToRad(
+                event.beta
+            );
+
+        const gamma =
+            THREE.MathUtils.degToRad(
+                event.gamma
+            );
+
+
+        /*
+         * IMPORTANT:
+         *
+         * We DO NOT do:
+         *
+         * phone.rotation.x = beta
+         * phone.rotation.y = gamma
+         * phone.rotation.z = alpha
+         *
+         * Instead, the three sensor angles are first
+         * converted into ONE quaternion.
+         */
+
+
+        euler.set(
+            beta,
+            alpha,
+            -gamma,
+            "YXZ"
+        );
+
+
+        // Convert Euler representation into quaternion
+
+        deviceQuaternion.setFromEuler(euler);
+
+
+        // Convert device coordinate system → Three.js
+
+        deviceQuaternion.multiply(
+            DEVICE_TO_THREE
+        );
+
+
+        // Compensate for screen orientation
+
+        const screenAngle =
+            THREE.MathUtils.degToRad(
+                getScreenAngle()
+            );
+
+
+        screenQuaternion.setFromAxisAngle(
+            SCREEN_AXIS,
+            -screenAngle
+        );
+
+
+        deviceQuaternion.multiply(
+            screenQuaternion
+        );
+
+
+        // --------------------------------------------------------
+        // CALIBRATION
+        // --------------------------------------------------------
+
+        if (!calibrated) {
+
+            calibrationQuaternion.copy(
+                deviceQuaternion
+            );
+
+            inverseCalibration
+                .copy(calibrationQuaternion)
+                .invert();
+
+            calibrated = true;
+        }
+
+
+        /*
+         * Calculate orientation relative to the orientation
+         * at the moment the user pressed "Enable".
+         *
+         * This prevents the phone from suddenly jumping to
+         * some arbitrary global orientation.
+         */
+
+        finalQuaternion
+            .copy(inverseCalibration)
+            .multiply(deviceQuaternion);
+
+
+        // --------------------------------------------------------
+        // SMOOTHING
+        // --------------------------------------------------------
+
+        /*
+         * We use slerp rather than independently smoothing
+         * X/Y/Z angles.
+         *
+         * This is another advantage of quaternion rotation.
+         */
+
+        phone.quaternion.slerp(
+            finalQuaternion,
+            0.25
+        );
+
+
+        // --------------------------------------------------------
+        // DISPLAY SENSOR VALUES
+        // --------------------------------------------------------
+
+        alphaDisplay.textContent =
+            Math.round(event.alpha) + "°";
+
+        betaDisplay.textContent =
+            Math.round(event.beta) + "°";
+
+        gammaDisplay.textContent =
+            Math.round(event.gamma) + "°";
+
+        screenDisplay.textContent =
+            getScreenAngle() + "°";
+    }
+
+
+    // ============================================================
+    // ENABLE SENSOR
+    // ============================================================
+
+    async function enableOrientation() {
+
+        try {
+
+            /*
+             * Some browsers, especially iOS Safari,
+             * require explicit permission.
+             *
+             * Samsung/Android browsers commonly don't
+             * expose this method, so we feature-detect it.
+             */
+
+            if (
+                typeof DeviceOrientationEvent ===
+                "undefined"
+            ) {
+
+                throw new Error(
+                    "Device orientation is not supported."
+                );
+            }
+
+
+            if (
+                typeof DeviceOrientationEvent
+                    .requestPermission ===
+                "function"
+            ) {
+
+                const permission =
+                    await DeviceOrientationEvent
+                        .requestPermission();
+
+
+                if (permission !== "granted") {
+
+                    throw new Error(
+                        "Motion permission was denied."
+                    );
+                }
+            }
+
+
+            // Start listening
+
+            window.addEventListener(
+                "deviceorientation",
+                updateDeviceQuaternion,
+                true
+            );
+
+
+            sensorStarted = true;
+
+
+            enableButton.disabled = true;
+
+            enableButton.textContent =
+                "Motion Sensor Enabled";
+
+
+            status.textContent =
+                "Move your phone — the 3D object should follow it.";
+
+
+        } catch (error) {
+
+            console.error(error);
+
+            status.textContent =
+                error.message ||
+                "Could not access the motion sensor.";
+        }
+    }
+
+
+    enableButton.addEventListener(
+        "click",
+        enableOrientation
+    );
+
+
+    // ============================================================
+    // WINDOW RESIZE
+    // ============================================================
+
+    window.addEventListener(
+        "resize",
+        () => {
+
+            camera.aspect =
+                window.innerWidth /
+                window.innerHeight;
+
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(
+                window.innerWidth,
+                window.innerHeight
+            );
+        }
+    );
+
+
+    // ============================================================
+    // RENDER LOOP
+    // ============================================================
+
+    function animate() {
+
+        requestAnimationFrame(
+            animate
+        );
+
+        renderer.render(
+            scene,
+            camera
+        );
+    }
+
+
+    animate();
+
+</script>
 
 </body>
 </html>
+```
+
+### What is different from the previous version?
+
+The important part is now:
+
+```js
+euler.set(beta, alpha, -gamma, "YXZ");
+
+deviceQuaternion.setFromEuler(euler);
+
+deviceQuaternion.multiply(DEVICE_TO_THREE);
+
+deviceQuaternion.multiply(screenQuaternion);
+
+finalQuaternion
+    .copy(inverseCalibration)
+    .multiply(deviceQuaternion);
+
+phone.quaternion.slerp(finalQuaternion, 0.25);
+```
+
+So the model's actual rotation is controlled by **one quaternion**, and the transition is interpolated using quaternion spherical linear interpolation (`slerp`). We are no longer doing `rotation.x = ...`, `rotation.y = ...`, `rotation.z = ...`.
+
+The `deviceorientation` API itself provides `alpha`, `beta`, and `gamma`; browsers may combine information from the phone's orientation sensors to provide that orientation data. Access requires a secure context such as HTTPS, and browsers that expose `requestPermission()` require it to be triggered by a user gesture.
+
+**For your next step, the only thing I would change is the placeholder phone.** We can load your actual `Leo.glb` with `GLTFLoader`, then apply this exact quaternion pipeline to Leo instead of the simple phone geometry.
