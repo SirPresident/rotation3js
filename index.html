@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
 
-    <!-- Important for phones -->
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
@@ -152,27 +151,58 @@
 
 
     // ============================================================
+    // ROTATION SETTINGS
+    // ============================================================
+
+    /*
+     * How much of the phone's physical rotation should be
+     * transferred to the 3D model.
+     *
+     * 1.00 = full rotation
+     * 0.75 = 75% of the rotation
+     * 0.50 = half the rotation
+     * 0.35 = 35% of the rotation
+     * 0.20 = very subtle movement
+     */
+
+    const ROTATION_SENSITIVITY = 0.35;
+
+
+    /*
+     * How quickly the model follows the target orientation.
+     *
+     * Higher = more responsive
+     * Lower = smoother / slower
+     */
+
+    const SMOOTHING = 0.18;
+
+
+    // ============================================================
     // THREE.JS SETUP
     // ============================================================
 
     const scene = new THREE.Scene();
 
-    scene.background = new THREE.Color(0x101318);
+    scene.background =
+        new THREE.Color(0x101318);
 
 
-    const camera = new THREE.PerspectiveCamera(
-        45,
-        window.innerWidth / window.innerHeight,
-        0.1,
-        100
-    );
+    const camera =
+        new THREE.PerspectiveCamera(
+            45,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            100
+        );
 
     camera.position.set(0, 0, 4);
 
 
-    const renderer = new THREE.WebGLRenderer({
-        antialias: true
-    });
+    const renderer =
+        new THREE.WebGLRenderer({
+            antialias: true
+        });
 
     renderer.setPixelRatio(
         Math.min(window.devicePixelRatio, 2)
@@ -183,7 +213,9 @@
         window.innerHeight
     );
 
-    document.body.appendChild(renderer.domElement);
+    document.body.appendChild(
+        renderer.domElement
+    );
 
 
     // ============================================================
@@ -191,31 +223,39 @@
     // ============================================================
 
     const ambientLight =
-        new THREE.AmbientLight(0xffffff, 2);
+        new THREE.AmbientLight(
+            0xffffff,
+            2
+        );
 
     scene.add(ambientLight);
 
 
     const light =
-        new THREE.DirectionalLight(0xffffff, 3);
+        new THREE.DirectionalLight(
+            0xffffff,
+            3
+        );
 
-    light.position.set(2, 4, 5);
+    light.position.set(
+        2,
+        4,
+        5
+    );
 
     scene.add(light);
 
 
     // ============================================================
-    // CREATE A SIMPLE 3D PHONE
-    //
-    // Later you can replace this with Leo.glb
+    // SIMPLE 3D PHONE
+    // Replace this later with Leo.glb
     // ============================================================
 
-    const phone = new THREE.Group();
+    const phone =
+        new THREE.Group();
 
     scene.add(phone);
 
-
-    // Main phone body
 
     const bodyGeometry =
         new THREE.BoxGeometry(
@@ -239,8 +279,6 @@
 
     phone.add(body);
 
-
-    // Screen
 
     const screenGeometry =
         new THREE.BoxGeometry(
@@ -267,12 +305,10 @@
     phone.add(screen);
 
 
-    // Leo text placeholder
-
     const leoGeometry =
         new THREE.PlaneGeometry(
-            1.0,
-            1.0
+            1,
+            1
         );
 
     const leoMaterial =
@@ -293,7 +329,7 @@
 
 
     // ============================================================
-    // SENSOR / QUATERNION VARIABLES
+    // QUATERNIONS
     // ============================================================
 
     const deviceQuaternion =
@@ -305,7 +341,13 @@
     const inverseCalibration =
         new THREE.Quaternion();
 
-    const finalQuaternion =
+    const relativeQuaternion =
+        new THREE.Quaternion();
+
+    const reducedQuaternion =
+        new THREE.Quaternion();
+
+    const targetQuaternion =
         new THREE.Quaternion();
 
     const euler =
@@ -314,9 +356,11 @@
     const screenQuaternion =
         new THREE.Quaternion();
 
+    const identityQuaternion =
+        new THREE.Quaternion();
 
-    // Fixed quaternion used to convert the device coordinate
-    // system into the Three.js coordinate system.
+
+    // Device coordinate system → Three.js coordinate system
 
     const DEVICE_TO_THREE =
         new THREE.Quaternion(
@@ -328,11 +372,14 @@
 
 
     const SCREEN_AXIS =
-        new THREE.Vector3(0, 0, 1);
+        new THREE.Vector3(
+            0,
+            0,
+            1
+        );
 
 
     let calibrated = false;
-    let sensorStarted = false;
 
 
     // ============================================================
@@ -340,26 +387,38 @@
     // ============================================================
 
     const enableButton =
-        document.getElementById("enableButton");
+        document.getElementById(
+            "enableButton"
+        );
 
     const status =
-        document.getElementById("status");
+        document.getElementById(
+            "status"
+        );
 
     const alphaDisplay =
-        document.getElementById("alpha");
+        document.getElementById(
+            "alpha"
+        );
 
     const betaDisplay =
-        document.getElementById("beta");
+        document.getElementById(
+            "beta"
+        );
 
     const gammaDisplay =
-        document.getElementById("gamma");
+        document.getElementById(
+            "gamma"
+        );
 
     const screenDisplay =
-        document.getElementById("screenAngle");
+        document.getElementById(
+            "screenAngle"
+        );
 
 
     // ============================================================
-    // GET CURRENT SCREEN ROTATION
+    // SCREEN ORIENTATION
     // ============================================================
 
     function getScreenAngle() {
@@ -370,8 +429,6 @@
         ) {
             return screen.orientation.angle;
         }
-
-        // Fallback for older browsers
 
         if (
             typeof window.orientation === "number"
@@ -384,7 +441,7 @@
 
 
     // ============================================================
-    // DEVICE ORIENTATION → QUATERNION
+    // DEVICE ORIENTATION
     // ============================================================
 
     function updateDeviceQuaternion(event) {
@@ -414,19 +471,9 @@
             );
 
 
-        /*
-         * IMPORTANT:
-         *
-         * We DO NOT do:
-         *
-         * phone.rotation.x = beta
-         * phone.rotation.y = gamma
-         * phone.rotation.z = alpha
-         *
-         * Instead, the three sensor angles are first
-         * converted into ONE quaternion.
-         */
-
+        // --------------------------------------------------------
+        // Convert sensor angles → quaternion
+        // --------------------------------------------------------
 
         euler.set(
             beta,
@@ -436,19 +483,23 @@
         );
 
 
-        // Convert Euler representation into quaternion
+        deviceQuaternion.setFromEuler(
+            euler
+        );
 
-        deviceQuaternion.setFromEuler(euler);
 
-
-        // Convert device coordinate system → Three.js
+        // --------------------------------------------------------
+        // Device coordinates → Three.js coordinates
+        // --------------------------------------------------------
 
         deviceQuaternion.multiply(
             DEVICE_TO_THREE
         );
 
 
-        // Compensate for screen orientation
+        // --------------------------------------------------------
+        // Screen orientation compensation
+        // --------------------------------------------------------
 
         const screenAngle =
             THREE.MathUtils.degToRad(
@@ -485,38 +536,55 @@
         }
 
 
-        /*
-         * Calculate orientation relative to the orientation
-         * at the moment the user pressed "Enable".
-         *
-         * This prevents the phone from suddenly jumping to
-         * some arbitrary global orientation.
-         */
+        // --------------------------------------------------------
+        // Orientation relative to starting position
+        // --------------------------------------------------------
 
-        finalQuaternion
+        relativeQuaternion
             .copy(inverseCalibration)
             .multiply(deviceQuaternion);
 
 
         // --------------------------------------------------------
-        // SMOOTHING
+        // REDUCE ROTATION SENSITIVITY
+        //
+        // Instead of applying the full rotation,
+        // move only part-way from identity to the
+        // measured orientation.
+        //
+        // Example:
+        //
+        // phone rotates 90°
+        // sensitivity = 0.35
+        //
+        // model rotates approximately 31.5°
         // --------------------------------------------------------
 
-        /*
-         * We use slerp rather than independently smoothing
-         * X/Y/Z angles.
-         *
-         * This is another advantage of quaternion rotation.
-         */
+        reducedQuaternion
+            .copy(identityQuaternion)
+            .slerp(
+                relativeQuaternion,
+                ROTATION_SENSITIVITY
+            );
 
-        phone.quaternion.slerp(
-            finalQuaternion,
-            0.25
+
+        targetQuaternion.copy(
+            reducedQuaternion
         );
 
 
         // --------------------------------------------------------
-        // DISPLAY SENSOR VALUES
+        // SMOOTH MOVEMENT
+        // --------------------------------------------------------
+
+        phone.quaternion.slerp(
+            targetQuaternion,
+            SMOOTHING
+        );
+
+
+        // --------------------------------------------------------
+        // SENSOR VALUES
         // --------------------------------------------------------
 
         alphaDisplay.textContent =
@@ -541,14 +609,6 @@
 
         try {
 
-            /*
-             * Some browsers, especially iOS Safari,
-             * require explicit permission.
-             *
-             * Samsung/Android browsers commonly don't
-             * expose this method, so we feature-detect it.
-             */
-
             if (
                 typeof DeviceOrientationEvent ===
                 "undefined"
@@ -559,6 +619,10 @@
                 );
             }
 
+
+            /*
+             * Some browsers require explicit permission.
+             */
 
             if (
                 typeof DeviceOrientationEvent
@@ -571,7 +635,9 @@
                         .requestPermission();
 
 
-                if (permission !== "granted") {
+                if (
+                    permission !== "granted"
+                ) {
 
                     throw new Error(
                         "Motion permission was denied."
@@ -580,16 +646,18 @@
             }
 
 
-            // Start listening
+            // ----------------------------------------------------
+            // Reset calibration when enabled
+            // ----------------------------------------------------
+
+            calibrated = false;
+
 
             window.addEventListener(
                 "deviceorientation",
                 updateDeviceQuaternion,
                 true
             );
-
-
-            sensorStarted = true;
 
 
             enableButton.disabled = true;
@@ -599,7 +667,7 @@
 
 
             status.textContent =
-                "Move your phone — the 3D object should follow it.";
+                "Move your phone — rotation is intentionally reduced.";
 
 
         } catch (error) {
@@ -620,7 +688,7 @@
 
 
     // ============================================================
-    // WINDOW RESIZE
+    // RESIZE
     // ============================================================
 
     window.addEventListener(
